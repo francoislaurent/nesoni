@@ -1,0 +1,152 @@
+Bootstrap: docker
+From: ubuntu:xenial
+
+%help
+The container OS is Ubuntu Xenial and can run on top of old OSes like CentOS6.
+
+%setup
+
+	echo "fr_FR.UTF-8 UTF-8" > ${SINGULARITY_ROOTFS}/etc/locale.gen
+	if ! [ -f ${SINGULARITY_ROOTFS}/root/get-pip.py ]; then
+		wget -P ${SINGULARITY_ROOTFS}/root/ -- https://bootstrap.pypa.io/get-pip.py
+	fi
+
+	BIOCMANAGER=BiocManager_1.30.10.tar.gz
+	if ! [ -f ${SINGULARITY_ROOTFS}/root/${BIOCMANAGER} ]; then
+		wget -P ${SINGULARITY_ROOTFS}/root/ -- https://cran.r-project.org/src/contrib/${BIOCMANAGER}
+	fi
+
+	# test local changes that have not been committed yet
+	LOCAL=/home/francois/github/tail-tools
+	CONTAINED=${SINGULARITY_ROOTFS}/root/tail-tools
+	if [ -d ${LOCAL} ]; then
+		mkdir -p ${CONTAINED}
+		cp -u  -t ${CONTAINED}/ ${LOCAL}/setup.py ${LOCAL}/Makefile ${LOCAL}/README.md ${LOCAL}/MANIFEST.in ${LOCAL}/COPYING
+		cp -ru -t ${CONTAINED}/ ${LOCAL}/tail_tools ${LOCAL}/development ${LOCAL}/backyard
+	fi
+
+	# test local changes that have not been committed yet
+	LOCAL=/home/francois/github/nesoni
+	CONTAINED=${SINGULARITY_ROOTFS}/root/nesoni
+	if [ -d ${LOCAL} ]; then
+		mkdir -p ${CONTAINED}
+		cp -u  -t ${CONTAINED}/ ${LOCAL}/setup.py ${LOCAL}/release.py ${LOCAL}/README.md ${LOCAL}/MANIFEST.in ${LOCAL}/COPYING
+		cp -ru -t ${CONTAINED}/ ${LOCAL}/nesoni ${LOCAL}/treemaker ${LOCAL}/backyard
+	fi
+
+%post
+
+	ln -sf /usr/share/zoneinfo/Europe/Paris /etc/localtime
+	apt-get update -y
+	apt-get install -y --no-install-recommends locales
+	locale-gen
+
+	apt-get install -y --no-install-recommends \
+		python software-properties-common apt-transport-https
+    gpg --keyserver keyserver.ubuntu.com --recv-key E298A3A825C0D65DFD57CBB651716619E084DAB9
+    gpg -a --export E084DAB9 | apt-key add -
+    echo "deb [arch=amd64,i386] https://cran.rstudio.com/bin/linux/ubuntu xenial/" >> /etc/apt/sources.list
+    apt-get update -y
+
+    apt-get install -y --no-install-recommends \
+        r-base r-base-dev python-pip python-numpy \
+        python-scipy python-dev
+	apt-get install -y --no-install-recommends \
+		build-essential git pigz python-setuptools python-wheel \
+        gfortran-5 libgfortran-5-dev liblapack-dev libblas-dev
+    if ! [ -f /usr/bin/gfortran ]; then
+        cur=`pwd`
+        cd /usr/bin
+        ln -s gfortran-5 /usr/bin/gfortran || true
+        cd $cur
+    fi
+
+	apt-get install -y --no-install-recommends \
+		rna-star bowtie2 samtools imagemagick rsync curl libcurl4-gnutls-dev \
+        libssl-dev libxml2-dev libgit2-dev
+
+    apt-get install -y --no-install-recommends \
+        r-cran-stringi r-cran-plyr r-cran-rcpp r-cran-stringr r-cran-labeling \
+        r-cran-munsell r-cran-rcolorbrewer r-cran-crayon r-cran-iterators r-cran-gtable \
+        r-cran-reshape2 r-cran-scales r-cran-gridextra r-cran-bitops r-cran-foreach \
+        r-cran-magrittr r-cran-ggplot2 r-cran-gtools r-cran-gdata r-cran-catools \
+        r-cran-colorspace r-cran-gplots
+
+    R -q -e 'install.packages(c("devtools", "remotes", "seriation", "rPython", "jsonlite"), repos="https://cloud.r-project.org")'
+
+	export LC_ALL=C
+	pip uninstall -qy nesoni || true
+    #pip install nesoni
+    LOCAL=/root/nesoni
+	if [ -d ${LOCAL} ]; then
+        cd ${LOCAL}
+		python setup.py install
+	else
+	    pip install 'git+https://github.com/Victorian-Bioinformatics-Consortium/nesoni.git#egg=nesoni'
+	fi
+
+    #R -q -e 'chooseCRANmirror(graphics=FALSE, ind=0)'
+    R -q -e 'devtools::install_github("MonashBioinformaticsPlatform/varistran")'
+
+	BIOCMANAGER=BiocManager_1.30.10.tar.gz
+	R CMD INSTALL /root/${BIOCMANAGER}
+	R -q -e 'BiocManager::install("Victorian-Bioinformatics-Consortium/nesoni", subdir="nesoni/nesoni-r")'
+
+	pip uninstall -qy tail-tools || true
+    LOCAL=/root/tail-tools
+	if [ -d ${LOCAL} ]; then
+        cd ${LOCAL}
+		python setup.py install
+	else
+	    pip install 'git+https://github.com/Monash-RNA-Systems-Biology-Laboratory/tail-tools.git#egg=tail-tools'
+	fi
+
+    pip install Theano
+    pip install fitnoise
+    python -m fitnoise
+    R CMD INSTALL /usr/local/lib/python2.7/dist-packages/fitnoise
+
+    rsync -aP rsync://hgdownload.soe.ucsc.edu/genome/admin/exe/linux.x86_64/wigToBigWig /usr/local/bin/
+
+    #curl -sL https://deb.nodesource.com/setup_12.x | bash -
+    #curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+    #echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+    #apt-get update
+    #apt-get install git-core libcurl4-openssl-dev libffi-dev libsqlite3-dev libxslt1-dev libxslt1.1 libyaml-dev nodejs sqlite3 yarn
+    #git clone https://github.com/rbenv/rbenv.git ~/.rbenv
+    #git clone https://github.com/rbenv/ruby-build.git ~/.rbenv/plugins/ruby-build
+    #echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.bashrc
+    #echo 'eval "$(rbenv init -)"' >> ~/.bashrc
+    #echo 'export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH"' >> ~/.bashrc
+    #source ~/.bashrc
+    #rbenv install 2.4.6
+    #rbenv global 2.4.6
+    #gem install bundler
+    #rbenv rehash
+    #gem install sprockets -v 3.7.1
+    #gem install rails -v 5.0.7.2
+    #rbenv rehash
+
+    #git clone git@github.com:Victorian-Bioinformatics-Consortium/degust.git
+    #cd degust
+    #bundle install
+    #rake degust:deps # fails!
+    #rake degust:build
+    #mkdir -p uploads log tmp/pids tmp/cache tmp/sockets tmp/R-cache
+    #rake degust:build RAILS_ENV=production
+
+    curl http://victorian-bioinformatics-consortium.github.io/degust/dist/latest/degust.py > /usr/local/bin/degust.py
+    chmod a+x /usr/local/bin/degust.py
+
+	mkdir -p /pasteur
+
+%runscript
+
+	cmd="tail-tools"
+	python="python"
+	if [ -n "$1" -a "$1" = "-s" ]; then
+		cmd="${python} -s -m ${cmd}"
+		shift
+	fi
+	exec $cmd $@
+
