@@ -398,6 +398,8 @@ class Bam_writer(object):
 
 
 def sort_bam(in_filename, out_prefix, by_name=False, cores=8):
+    assert os.path.isfile(in_filename), 'no such file: '+in_filename
+
     cores = min(cores, legion.coordinator().get_cores())
     megs = max(10, 800 // cores)
     
@@ -405,17 +407,22 @@ def sort_bam(in_filename, out_prefix, by_name=False, cores=8):
     #    [ 'samtools', 'sort', '-@', '%d' % cores, '-m', '%dM' % megs ] +
     #    ([ '-n' ] if by_name else [ ]) +
     #    [ in_filename, out_prefix ], cores=cores)
-    io.execute(
-        [ 'samtools', 'sort', '-@', '%d' % cores, '-m', '%dM' % megs ] +
-        ([ '-n' ] if by_name else [ ]) +
-        [ "-o", out_prefix+".bam", in_filename ], cores=cores)
+    os.system(
+        'samtools sort{} {} {}'.format(' -n' if by_name else '', in_filename, out_prefix)
+    )
 
 def sort_and_index_bam(in_filename, out_prefix, cores=8):
     sort_bam(in_filename, out_prefix, cores=cores)
+
+    out_filename = out_prefix+'.bam'
+    assert os.path.isfile(out_filename), 'no such file: '+out_filename
     
-    io.execute([
-        'samtools', 'index', out_prefix + '.bam'
-        ])
+    #io.execute([
+    os.system(' '.join(
+        ['samtools', 'index', out_filename]
+    ))
+
+    assert os.path.isfile(out_filename), 'no such file: '+out_filename
 
 
 @config.help("""\

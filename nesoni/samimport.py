@@ -17,6 +17,7 @@ class Import(config.Action_with_output_dir):
     reference = [ ]
     
     def run(self):
+
         workspace = working_directory.Working(self.output_dir)        
         workspace.setup_reference(self.reference)
         workspace.update_param(snp_cost = self.snp_cost)
@@ -36,21 +37,25 @@ class Import(config.Action_with_output_dir):
         else:
             temp_filename = io.abspath(self.output_dir, 'temp.bam')
             sort_input_filename = temp_filename
-            writer = io.Pipe_writer(temp_filename, ['samtools', 'view', '-S', '-b', '-'])
-            f = open(self.input, 'rb')
-            while True:
-                data = f.read(1<<20)
-                if not data: break
-                writer.write(data)
-            writer.close()
-            f.close()
+            #writer = io.Pipe_writer(temp_filename, ['samtools', 'view', '-S', '-b', '-'])
+            #f = open(self.input, 'rb')
+            #while True:
+            #    data = f.read(1<<20)
+            #    if not data: break
+            #    writer.write(data)
+            #writer.close()
+            #f.close()
+
+            os.system(' '.join(
+                ['samtools', 'view', '-o', temp_filename, '-bhS', self.input]
+            ))
+
+        assert os.path.isfile(sort_input_filename)
         
         grace.status('Sort')
         
-        #io.execute([
-        #    'samtools', 'sort', '-n', sort_input_filename, bam_prefix
-        #])
         sam.sort_bam(sort_input_filename, bam_prefix, by_name=True)
+        assert os.path.isfile(bam_filename), 'no such file: '+bam_filename
         
         if temp_filename is not None:
             os.unlink(temp_filename)
