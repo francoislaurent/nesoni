@@ -1,5 +1,10 @@
 
-Install *singularity* from https://sylabs.io/singularity/, download the latest recipe and run:
+Singularity containers are useful for running tail-tools on any machine with Singularity installed.
+
+Procedure
+=========
+
+Install Singularity from https://sylabs.io/singularity/, download the latest recipe and run:
 
     sudo singularity build tail-tools-container tail-tools-200901.recipe
 
@@ -7,10 +12,10 @@ This will generate a ``tail-tools-container`` file so that instead of running ``
 
     singularity run tail-tools-container <tail-tools-script>
 
-on any machine with *singularity* installed.
+on any machine with Singularity installed.
 
 Your local Python distribution may conflict with the packages available in the container.
-If you run into Python-related issues, the ``-s`` option can be passed to *python* with:
+If you run into Python-related issues, the ``-s`` option can be passed to ``python`` with:
 
     singularity run tail-tools-container -s <tail-tools-script>
 
