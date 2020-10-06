@@ -4,7 +4,7 @@ Singularity containers are useful for running tail-tools on any machine with Sin
 Procedure
 =========
 
-Install Singularity from https://sylabs.io/singularity/, download the latest recipe and run:
+Install Singularity from https://sylabs.io/singularity/, download the [latest recipe](https://github.com/francoislaurent/nesoni/tree/master/containers) and run:
 
     sudo singularity build tail-tools-container tail-tools-200901.recipe
 
